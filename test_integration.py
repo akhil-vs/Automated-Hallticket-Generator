@@ -10,8 +10,9 @@ from pathlib import Path
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 
-# Add current directory to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add backend directory to path
+backend_dir = Path(__file__).parent / 'webapp' / 'backend'
+sys.path.insert(0, str(backend_dir))
 
 from config import SchoolConfig
 from excel_reader import StudentDetailsReader, TimetableReader

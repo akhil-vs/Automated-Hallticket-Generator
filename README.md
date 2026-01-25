@@ -18,19 +18,19 @@ A Python application that automatically generates hall tickets for students by c
 ## Requirements
 
 - Python 3.8 or higher
-- See `requirements.txt` for Python dependencies
+- See `webapp/backend/requirements.txt` for Python dependencies
 
 ## Installation
 
 1. Install Python dependencies:
 ```bash
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r webapp/backend/requirements.txt
 ```
 
 ## Usage
 
 ```bash
-python3 main.py --students <student_excel_path> --timetable <timetable_excel_path> --photos <photos_folder_path> --output <output_folder> --school-name "School Name" --school-address "School Address"
+python3 webapp/backend/main.py --students <student_excel_path> --timetable <timetable_excel_path> --photos <photos_folder_path> --output <output_folder> --school-name "School Name" --school-address "School Address"
 ```
 
 ### Configuration
@@ -39,7 +39,7 @@ You can configure school details in one of the following ways:
 
 1. **Configuration file** (recommended for repeated use):
    ```bash
-   python3 main.py --config-file school_config.json --students ... --timetable ... --photos ...
+   python3 webapp/backend/main.py --config-file school_config.json --students ... --timetable ... --photos ...
    ```
    
    Create a JSON or YAML file with:
@@ -86,14 +86,18 @@ Generated PDF files will be saved in the specified output folder, with one PDF p
 
 ```
 AutomatedHallticketGenerator/
-├── main.py                 # Main entry point
-├── excel_reader.py         # Excel reading utilities
-├── photo_loader.py         # Photo loading and fuzzy matching
-├── pdf_generator.py        # PDF generation with 3-per-page layout
-├── config.py               # School details and configuration
-├── config_loader.py        # Configuration file loader (JSON/YAML)
-├── validator.py            # Input validation utilities
-├── requirements.txt        # Python dependencies
+├── webapp/
+│   └── backend/
+│       ├── main.py         # CLI entry point
+│       ├── app.py          # Flask API (for web app)
+│       ├── excel_reader.py         # Excel reading utilities
+│       ├── photo_loader.py         # Photo loading and fuzzy matching
+│       ├── pdf_generator.py        # PDF generation with 3-per-page layout
+│       ├── config.py               # School details and configuration
+│       ├── config_loader.py        # Configuration file loader (JSON/YAML)
+│       ├── validator.py            # Input validation utilities
+│       ├── requirements.txt        # Python dependencies
+│       └── gunicorn_config.py      # Production server config
 ├── README.md              # This file
 ├── school_config.example.json  # Example configuration file
 └── output/                # Generated PDF files (created at runtime)

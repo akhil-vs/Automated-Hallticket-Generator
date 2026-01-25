@@ -64,5 +64,5 @@ This usually means:
 3. Verify all dependencies are installed:
    ```bash
    cd webapp/backend
-   python3 -m pip install -r requirements.txt
+   python3 -m pip install -r backend/requirements.txt
    ```

@@ -17,15 +17,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy backend requirements and install
-COPY backend/requirements.txt ./
+COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code
+# Copy backend code (includes all Python modules)
 COPY backend/ ./backend/
-
-# Copy parent directory (for Python modules)
-COPY *.py ./
-COPY excel_reader.py photo_loader.py pdf_generator.py config.py validator.py config_loader.py ./
 
 # Copy frontend build
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist

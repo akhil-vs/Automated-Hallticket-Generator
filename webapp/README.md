@@ -18,7 +18,7 @@ webapp/
 1. Install Python dependencies:
 ```bash
 cd backend
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r backend/requirements.txt
 ```
 
 2. Run the Flask server:

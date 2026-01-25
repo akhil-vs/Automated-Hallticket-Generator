@@ -8,7 +8,7 @@ echo "Starting Hall Ticket Generator Web Application..."
 if [ ! -d "backend/venv" ] && [ ! -f "backend/.installed" ]; then
     echo "Installing backend dependencies..."
     cd backend
-    python3 -m pip install -r requirements.txt
+    python3 -m pip install -r backend/requirements.txt
     touch .installed
     cd ..
 else

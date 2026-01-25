@@ -66,8 +66,9 @@ function App() {
         formDataToSend.append('signature', formData.signature_file)
       }
 
-      // Use relative URL to leverage Vite proxy
-      const fetchUrl = '/api/generate'
+      // Use environment variable for API URL, fallback to relative URL for dev proxy
+      const apiBaseUrl = import.meta.env.VITE_API_URL || ''
+      const fetchUrl = `${apiBaseUrl}/api/generate`
       const response = await fetch(fetchUrl, {
         method: 'POST',
         body: formDataToSend

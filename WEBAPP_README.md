@@ -23,7 +23,7 @@ This will:
 
 ```bash
 cd webapp/backend
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r webapp/backend/requirements.txt
 python3 app.py
 ```
 

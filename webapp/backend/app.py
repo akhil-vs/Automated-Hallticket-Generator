@@ -12,11 +12,7 @@ import zipfile
 import logging
 import pandas as pd
 
-# Add parent directories to path to import modules
-current_dir = Path(__file__).parent
-project_root = current_dir.parent.parent
-sys.path.insert(0, str(project_root))
-
+# Modules are now in the same directory (backend/)
 from excel_reader import StudentDetailsReader, TimetableReader
 from photo_loader import PhotoLoader
 from pdf_generator import HallTicketGenerator
@@ -24,10 +20,19 @@ from config import SchoolConfig
 from validator import InputValidator
 
 app = Flask(__name__)
-# Enable CORS for React frontend - allow all origins in development
+
+# CORS configuration - allow environment variable for production
+allowed_origins = os.getenv('CORS_ORIGINS', '*').split(',')
+if allowed_origins == ['*']:
+    # Development: allow all origins
+    cors_origins = "*"
+else:
+    # Production: specific origins
+    cors_origins = [origin.strip() for origin in allowed_origins]
+
 CORS(app, resources={
     r"/api/*": {
-        "origins": "*",  # Allow all origins in development
+        "origins": cors_origins,
         "methods": ["GET", "POST", "DELETE", "OPTIONS", "PUT"],
         "allow_headers": ["Content-Type", "Authorization"]
     }

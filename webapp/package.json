@@ -1,0 +1,14 @@
+{
+  "name": "hall-ticket-generator-webapp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "preview": "cd frontend && npm run preview",
+    "install-frontend": "cd frontend && npm install",
+    "install-backend": "cd backend && pip install -r requirements.txt",
+    "install-all": "npm run install-frontend && npm run install-backend"
+  },
+  "description": "Web application for automated hall ticket generator"
+}

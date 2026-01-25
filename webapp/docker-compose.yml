@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  webapp:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+    volumes:
+      - ./uploads:/tmp/hallticket_uploads
+    restart: unless-stopped

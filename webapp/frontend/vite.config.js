@@ -8,7 +8,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://vsakhilvs.pythonanywhere.com',
+        target: 'http://vsakhilvs.pythonanywhere.com',
         changeOrigin: true,
       }
     }

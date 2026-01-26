@@ -68,7 +68,7 @@ function App() {
 
       // Use environment variable for API URL, fallback to relative URL for dev proxy
       const apiBaseUrl = import.meta.env.VITE_API_URL || ''
-      const fetchUrl = `${apiBaseUrl}/api/generate`
+      const fetchUrl = `${apiBaseUrl}/generate`
       const response = await fetch(fetchUrl, {
         method: 'POST',
         body: formDataToSend

@@ -71,6 +71,22 @@ header p {
   margin-bottom: 20px;
 }
 
+.timing-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.timing-fields-grid .form-group {
+  margin-bottom: 10px;
+}
+
+@media (min-width: 768px) {
+  .timing-fields-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .form-group label {
   display: block;
   margin-bottom: 8px;
@@ -87,7 +103,9 @@ header p {
   border: 2px solid #e0e0e0;
   border-radius: 6px;
   font-size: 1em;
-  transition: border-color 0.3s;
+  transition: border-color 0.3s, background-color 0.3s;
+  background-color: white;
+  color: #333;
 }
 
 .form-group input[type="text"]:focus,
@@ -96,9 +114,41 @@ header p {
   border-color: #667eea;
 }
 
+.input-error {
+  border-color: #ff4444 !important;
+  background-color: #fff5f5 !important;
+  color: #333 !important;
+}
+
+.input-error::placeholder {
+  color: #999 !important;
+}
+
+.input-error:focus {
+  border-color: #ff4444 !important;
+  background-color: #fff5f5 !important;
+  color: #333 !important;
+  box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.1);
+}
+
+.field-error {
+  display: block;
+  color: #ff4444;
+  font-size: 0.85em;
+  margin-top: 5px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 .form-group input[type="file"] {
   padding: 8px;
   cursor: pointer;
+}
+
+.form-group input[type="file"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background-color: #f5f5f5;
 }
 
 .form-group small {
@@ -106,6 +156,138 @@ header p {
   margin-top: 5px;
   color: #666;
   font-size: 0.85em;
+}
+
+.file-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  gap: 10px;
+}
+
+.file-name {
+  flex: 1;
+  color: #333;
+  font-size: 0.9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove-file-btn {
+  background-color: transparent;
+  color: #666;
+  border: none;
+  border-radius: 0;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.2s, transform 0.2s;
+  padding: 0;
+}
+
+.remove-file-btn:hover {
+  color: #ff4444;
+  transform: scale(1.1);
+}
+
+.remove-file-btn:active {
+  transform: scale(0.95);
+  color: #cc0000;
+}
+
+.switch-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  margin-bottom: 8px;
+  padding: 8px 0;
+}
+
+.switch-label span:first-child {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95em;
+}
+
+.switch-container {
+  position: relative;
+  display: inline-block;
+  width: 33px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.switch-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e0;
+  transition: all 0.3s ease;
+  border-radius: 0;
+  box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.1);
+}
+
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 13.5px;
+  width: 13.5px;
+  left: 2.25px;
+  bottom: 2.25px;
+  background-color: white;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0;
+  box-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.2);
+}
+
+.switch-input:checked + .switch-slider {
+  background-color: #667eea;
+  box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.1), 0 0 0 2.25px rgba(102, 126, 234, 0.1);
+}
+
+.switch-input:checked + .switch-slider:before {
+  transform: translateX(15px);
+  box-shadow: 0 1.5px 4.5px rgba(0, 0, 0, 0.25);
+}
+
+.switch-input:focus + .switch-slider {
+  outline: none;
+}
+
+.switch-input:focus:checked + .switch-slider {
+  box-shadow: inset 0 1.5px 3px rgba(0, 0, 0, 0.1), 0 0 0 2.25px rgba(102, 126, 234, 0.2);
+}
+
+.switch-slider:hover {
+  background-color: #a0aec0;
+}
+
+.switch-input:checked + .switch-slider:hover {
+  background-color: #5568d3;
 }
 
 .alert {

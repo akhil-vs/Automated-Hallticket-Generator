@@ -4,6 +4,10 @@ Flask backend API for Hall Ticket Generator web application.
 import os
 import sys
 from pathlib import Path
+
+# Force stdout to be unbuffered so print statements appear immediately
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(line_buffering=True)
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import tempfile
@@ -20,6 +24,17 @@ from config import SchoolConfig
 from validator import InputValidator
 
 app = Flask(__name__)
+
+# Add request logging middleware
+@app.before_request
+def log_request_info():
+    if request.path == '/api/generate':
+        print(f"\n[REQUEST] {request.method} {request.path}", flush=True)
+        print(f"[REQUEST] Content-Type: {request.content_type}", flush=True)
+        print(f"[REQUEST] Form keys: {list(request.form.keys())}", flush=True)
+        print(f"[REQUEST] Files keys: {list(request.files.keys())}", flush=True)
+        if 'show_photo_box' in request.form:
+            print(f"[REQUEST] show_photo_box from form: '{request.form.get('show_photo_box')}'", flush=True)
 
 # CORS configuration - allow environment variable for production
 allowed_origins = os.getenv('CORS_ORIGINS', '*').split(',')
@@ -64,9 +79,20 @@ def health_check():
 @app.route('/api/generate', methods=['POST', 'OPTIONS'])
 def generate_hall_tickets():
     """Generate hall tickets from uploaded files."""
-    """if request.method == 'OPTIONS':
-        return '', 200"""
-    """Generate hall tickets from uploaded files."""
+    import sys
+    sys.stdout.write("=" * 50 + "\n")
+    sys.stdout.write("GENERATE HALL TICKETS REQUEST RECEIVED\n")
+    sys.stdout.write("=" * 50 + "\n")
+    sys.stdout.flush()
+    
+    print("=" * 50, flush=True)
+    print("GENERATE HALL TICKETS REQUEST RECEIVED", flush=True)
+    print("=" * 50, flush=True)
+    print(f"Request method: {request.method}", flush=True)
+    print(f"Request content type: {request.content_type}", flush=True)
+    print(f"Form keys: {list(request.form.keys())}", flush=True)
+    print(f"Files keys: {list(request.files.keys())}", flush=True)
+    
     try:
         # Get form data
         school_name = request.form.get('school_name', '').strip()
@@ -76,7 +102,15 @@ def generate_hall_tickets():
         signature_path = request.files.get('signature')
         
         # Get show_photo_box setting (default: True)
-        show_photo_box = request.form.get('show_photo_box', 'true').lower() == 'true'
+        show_photo_box_str = request.form.get('show_photo_box', 'true').strip().lower()
+        print(f"[DEBUG] Raw show_photo_box value from form: '{show_photo_box_str}'", flush=True)
+        # Explicitly check for 'false' to handle edge cases
+        if show_photo_box_str in ('false', '0', 'no', 'off'):
+            show_photo_box = False
+        else:
+            show_photo_box = show_photo_box_str == 'true'
+        print(f"[DEBUG] Parsed show_photo_box: {show_photo_box} (type: {type(show_photo_box)})", flush=True)
+        logger.info(f"Received show_photo_box value: '{show_photo_box_str}' -> {show_photo_box} (type: {type(show_photo_box)})")
         
         # Get examination timing data (optional)
         examination_timing = None
@@ -115,9 +149,13 @@ def generate_hall_tickets():
                     timetable_path = work_dir / 'timetable.xlsx'
                     timetable_file.save(timetable_path)
             
-            if 'photos' in request.files:
+            photos_uploaded = False
+            photos_dir = None  # Initialize to None
+            # Only process photos if photo box is enabled
+            if show_photo_box and 'photos' in request.files:
                 photos_zip = request.files['photos']
                 if photos_zip.filename:
+                    photos_uploaded = True
                     photos_zip_path = work_dir / 'photos.zip'
                     photos_zip.save(photos_zip_path)
                     # Extract photos
@@ -125,6 +163,10 @@ def generate_hall_tickets():
                     photos_dir.mkdir(exist_ok=True)
                     with zipfile.ZipFile(photos_zip_path, 'r') as zip_ref:
                         zip_ref.extractall(photos_dir)
+            else:
+                # Photo box is disabled - explicitly skip photo processing
+                logger.info(f"Photo box is disabled (show_photo_box={show_photo_box}), skipping all photo processing")
+                photos_dir = None
             
             # Save logo and signature if provided
             logo_file_path = None
@@ -173,21 +215,61 @@ def generate_hall_tickets():
             # Validate files exist before processing
             students_excel = work_dir / 'students.xlsx'
             timetable_excel = work_dir / 'timetable.xlsx'
-            photos_dir = work_dir / 'photos'
             
             if not students_excel.exists():
                 return jsonify({'error': 'Students Excel file not found after upload'}), 400
             if not timetable_excel.exists():
                 return jsonify({'error': 'Timetable Excel file not found after upload'}), 400
-            if not photos_dir.exists() or not photos_dir.is_dir():
-                return jsonify({'error': 'Photos directory not found after extraction'}), 400
             
-            logger.info(f"Processing files: students={students_excel.exists()}, timetable={timetable_excel.exists()}, photos={photos_dir.exists()}")
+            # Only require photos directory if photo box is enabled AND photos were uploaded
+            print(f"[DEBUG] Photo validation check: show_photo_box={show_photo_box} (type: {type(show_photo_box)}), photos_uploaded={photos_uploaded}, photos_dir={photos_dir}", flush=True)
+            logger.info(f"Photo validation check: show_photo_box={show_photo_box} (type: {type(show_photo_box)}), photos_uploaded={photos_uploaded}, photos_dir={photos_dir}")
+            
+            # CRITICAL: If photo box is disabled, skip ALL photo validation
+            # Use explicit boolean check to avoid any edge cases
+            is_photo_box_disabled = (show_photo_box is False or show_photo_box == False or not bool(show_photo_box))
+            print(f"[DEBUG] is_photo_box_disabled check: {is_photo_box_disabled}", flush=True)
+            print(f"[DEBUG] show_photo_box={show_photo_box}, type={type(show_photo_box)}, bool={bool(show_photo_box)}", flush=True)
+            
+            if is_photo_box_disabled:
+                # Photo box is disabled - skip all photo-related validation completely
+                print(f"[DEBUG] Photo box is DISABLED - SKIPPING ALL PHOTO VALIDATION", flush=True)
+                logger.info(f"Photo box is DISABLED (show_photo_box={show_photo_box}, type={type(show_photo_box)}), completely skipping all photo validation and processing")
+                photos_dir = None
+                photos_uploaded = False  # Ensure this is also False
+                # Skip to end of photo validation - do not check photos_dir at all
+                print(f"[DEBUG] After setting photos_dir=None, photos_uploaded=False", flush=True)
+            elif bool(show_photo_box) and photos_uploaded:
+                # Photo box is enabled and photos were uploaded - validate directory exists
+                print(f"[ERROR] ENTERED PHOTO VALIDATION BLOCK - THIS SHOULD NOT HAPPEN IF PHOTO BOX IS OFF!", flush=True)
+                print(f"[ERROR] show_photo_box={show_photo_box}, photos_uploaded={photos_uploaded}", flush=True)
+                print(f"[DEBUG] Photo box ENABLED and photos uploaded - validating photos directory: {photos_dir}")
+                logger.info(f"Photo box enabled and photos uploaded - validating photos directory: {photos_dir}")
+                if photos_dir is None:
+                    print(f"[ERROR] Photos directory is None but photos_uploaded is True. This should not happen.", flush=True)
+                    logger.error(f"Photos directory is None but photos_uploaded is True. This should not happen.")
+                    return jsonify({'error': 'Photos directory not found after extraction'}), 400
+                if not photos_dir.exists():
+                    print(f"[ERROR] Photos directory does not exist: {photos_dir}", flush=True)
+                    logger.error(f"Photos directory does not exist: {photos_dir}")
+                    return jsonify({'error': 'Photos directory not found after extraction'}), 400
+                if not photos_dir.is_dir():
+                    print(f"[ERROR] Photos path exists but is not a directory: {photos_dir}", flush=True)
+                    logger.error(f"Photos path exists but is not a directory: {photos_dir}")
+                    return jsonify({'error': 'Photos directory not found after extraction'}), 400
+                print(f"[DEBUG] Photos directory validation passed: {photos_dir}")
+                logger.info(f"Photos directory validation passed: {photos_dir}")
+            elif show_photo_box and not photos_uploaded:
+                # Photo box is enabled but no photos file was uploaded
+                logger.warning(f"Photo box is enabled but no photos file was uploaded")
+                return jsonify({'error': 'Photo box is enabled but no photos file was uploaded. Please upload a photos ZIP file or disable the photo box.'}), 400
+            
+            logger.info(f"Processing files: students={students_excel.exists()}, timetable={timetable_excel.exists()}, photos={photos_dir.exists() if (show_photo_box and photos_dir) else 'N/A (photo box disabled)'}")
             
             # Initialize components
             student_reader = StudentDetailsReader(str(students_excel))
             timetable_reader = TimetableReader(str(timetable_excel))
-            photo_loader = PhotoLoader(str(photos_dir))
+            photo_loader = PhotoLoader(str(photos_dir)) if (show_photo_box and photos_dir) else None
             pdf_generator = HallTicketGenerator(school_config)
             
             # Read all classes
@@ -277,9 +359,12 @@ def generate_hall_tickets():
                     students_data.append(student_data)
                     student_roll_numbers.append(roll_number)
                     
-                    # Load student photo
-                    photo = photo_loader.load_photo(class_name, roll_number)
-                    student_photos[roll_number] = photo
+                    # Load student photo only if photo box is enabled
+                    if show_photo_box and photo_loader:
+                        photo = photo_loader.load_photo(class_name, roll_number)
+                        student_photos[roll_number] = photo
+                    else:
+                        student_photos[roll_number] = None
                 
                 if not students_data:
                     error_msg = f"No valid students found in class {class_name}. Please check your student data."
@@ -647,7 +732,21 @@ def generate_hall_tickets():
             pass
     
     except Exception as e:
+        import traceback
+        error_msg = str(e)
+        print(f"[EXCEPTION] Top-level exception caught: {error_msg}", flush=True)
+        print(f"[EXCEPTION] Exception type: {type(e)}", flush=True)
+        print(f"[EXCEPTION] Traceback:\n{traceback.format_exc()}", flush=True)
+        sys.stdout.write(f"[EXCEPTION] Error: {error_msg}\n")
+        sys.stdout.write(f"[EXCEPTION] Type: {type(e)}\n")
+        sys.stdout.write(f"[EXCEPTION] Traceback:\n{traceback.format_exc()}\n")
+        sys.stdout.flush()
         logger.error(f"Error generating hall tickets: {str(e)}", exc_info=True)
+        # Check if this is the photos directory error
+        if 'Photos directory' in error_msg or 'photos' in error_msg.lower():
+            print(f"[EXCEPTION] THIS IS A PHOTOS DIRECTORY ERROR!", flush=True)
+            sys.stdout.write("[EXCEPTION] THIS IS A PHOTOS DIRECTORY ERROR!\n")
+            sys.stdout.flush()
         return jsonify({'error': str(e)}), 500
 
 

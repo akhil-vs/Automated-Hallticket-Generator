@@ -237,41 +237,38 @@ class HallTicketGenerator:
         canvas_obj.rect(x_start, y_bottom, card_width, card_height, fill=0, stroke=1)
         
         # --- 2. HEADER (with Logo and School Name) ---
-        logo_size = 20 * mm_to_pt * 0.75  # Logo size (75% of original 20mm)
-        logo_margin = 5 * mm_to_pt  # Margin between logo and text
         header_top_margin = 2 * mm_to_pt  # Margin from top border to ensure header stays inside
         
+        # Split header into two sections:
+        # 1. Logo section: 20% of content width, left-aligned
+        # 2. Text section: 80% of content width, center-aligned within that space
+        logo_section_width = content_width * 0.20  # 20% for logo
+        text_section_width = content_width * 0.80  # 80% for text
+        text_section_x = content_x_start + logo_section_width  # Start of text section
+        
+        # Logo size - fit within logo section with some padding
+        logo_section_padding = 2 * mm_to_pt
+        max_logo_size = logo_section_width - 2 * logo_section_padding
+        logo_size = min(20 * mm_to_pt * 0.75, max_logo_size)  # Use 75% of 20mm or max available
+        
         # Calculate header_y to ensure logo stays within top border
-        # Logo extends above header_y by logo_size/2, so we need:
-        # header_y - logo_size/2 + logo_size <= content_y_top - header_top_margin
-        # Simplifying: header_y + logo_size/2 <= content_y_top - header_top_margin
         header_y = content_y_top - header_top_margin - logo_size / 2
         
-        # School name text width
-        canvas_obj.setFont("Helvetica-Bold", 14)
-        canvas_obj.setFillColor(colors.black)
-        school_name = self.config.school_name or "SCHOOL NAME"
-        text_width = canvas_obj.stringWidth(school_name, "Helvetica-Bold", 14)
-        
-        # Check if logo exists and calculate positions
+        # Check if logo exists and draw it
         has_logo = self.config.logo_path and self.config.logo_path.exists()
         
         if has_logo:
-            # Calculate total width of logo + margin + school name
-            total_width = logo_size + logo_margin + text_width
-            # Center the logo+text combination within content area
-            group_start_x = content_x_start + (content_width - total_width) / 2
-            
-            # Logo position (left side of centered group)
-            logo_x = group_start_x
+            # Logo position: left-aligned in logo section, centered vertically
+            logo_x = content_x_start + logo_section_padding
             logo_y = header_y - logo_size / 2
             
-            # Ensure logo stays within bounds (double-check)
+            # Ensure logo stays within bounds
             if logo_y + logo_size > content_y_top:
                 logo_y = content_y_top - logo_size
                 header_y = logo_y + logo_size / 2
             if logo_y < content_y_bottom:
                 logo_y = content_y_bottom
+                header_y = logo_y + logo_size / 2
             
             # Draw logo
             try:
@@ -307,22 +304,25 @@ class HallTicketGenerator:
                 logger.warning(f"Could not draw logo: {e}")
                 has_logo = False
         
-        # School name position
-        if has_logo:
-            # Position to the right of logo
-            school_name_x = logo_x + logo_size + logo_margin
-        else:
-            # No logo, center school name within content area
-            school_name_x = content_x_start + (content_width - text_width) / 2
+        # School name and exam name: Center-aligned within text section (80% width)
+        canvas_obj.setFillColor(colors.black)
         
+        # School name - first row
+        canvas_obj.setFont("Helvetica-Bold", 14)
+        school_name = self.config.school_name or "SCHOOL NAME"
+        school_name_width = canvas_obj.stringWidth(school_name, "Helvetica-Bold", 14)
+        # Center within text section
+        school_name_x = text_section_x + (text_section_width - school_name_width) / 2
         canvas_obj.drawString(school_name_x, header_y, school_name)
         
-        # Title: Examination name - centered, below header
+        # Examination name - second row, below school name
         canvas_obj.setFont("Helvetica-Bold", 10)
-        title = self.config.examination_name or "ANNUAL EXAMINATION ADMIT CARD"  # Use dynamic examination name
-        text_width = canvas_obj.stringWidth(title, "Helvetica-Bold", 10)
-        title_y = header_y - 15  # Position title below header with spacing
-        canvas_obj.drawString(content_x_start + (content_width - text_width) / 2, title_y, title)
+        title = self.config.examination_name or "ADMIT CARD"  # Use dynamic examination name
+        title_width = canvas_obj.stringWidth(title, "Helvetica-Bold", 10)
+        title_y = header_y - 15  # Position title below school name with spacing
+        # Center within text section
+        title_x = text_section_x + (text_section_width - title_width) / 2
+        canvas_obj.drawString(title_x, title_y, title)
         
         # --- 3. LEFT SIDE: Student Details ---
         # Start student details below title, ensuring no overlap with photo
@@ -437,11 +437,10 @@ class HallTicketGenerator:
                 tt_data = {'dates': [], 'days': [], 'subjects': [], 'times': []}
             
             if tt_data.get('dates'):
-                # Limit number of dates to fit in available space (max 9 dates as per image)
-                max_dates = min(len(tt_data['dates']), 9)
-                dates = [str(d) for d in tt_data['dates'][:max_dates]]
-                days = [str(d) for d in tt_data['days'][:max_dates]]
-                subjects = tt_data['subjects'][:max_dates]
+                # Use all dates - no hard limit, let column width adjustment handle it
+                dates = [str(d) for d in tt_data['dates']]
+                days = [str(d) for d in tt_data['days']]
+                subjects = tt_data['subjects']
                 
                 # Prepare table data - horizontal format
                 # Header row: Dates
@@ -451,15 +450,99 @@ class HallTicketGenerator:
                 rows = [
                     ['Day'] + days,
                     ['Subject'] + subjects,
-                    ['Sign of Invigilator'] + [''] * max_dates
+                    ['Sign of Invigilator'] + [''] * len(dates)
                 ]
                 
-                # Calculate column widths
-                # First column (Date/Day/Subject) is narrower, rest are equal width for dates
+                # Calculate dynamic column widths based on content
                 num_cols = len(headers)
-                first_col_width = table_width * 0.15  # 15% for label column
-                date_col_width = (table_width - first_col_width) / max(1, num_cols - 1)  # Equal width for date columns
-                col_widths = [first_col_width] + [date_col_width] * (num_cols - 1)
+                font_size = 6
+                cell_padding = 2
+                min_col_width = 15  # Minimum column width in points for readability
+                
+                # Calculate minimum width needed for each column based on content
+                canvas_obj.setFont("Helvetica-Bold", font_size)
+                min_widths = []
+                
+                # First column (label column) - check all label texts
+                label_texts = ['Date', 'Day', 'Subject', 'Sign of Invigilator']
+                first_col_min = max([canvas_obj.stringWidth(str(text), "Helvetica-Bold", font_size) 
+                                    for text in label_texts]) + 2 * cell_padding
+                first_col_min = max(first_col_min, min_col_width)
+                min_widths.append(first_col_min)
+                
+                # Date columns - check header (date) and content (day, subject)
+                canvas_obj.setFont("Helvetica", font_size)
+                for col_idx in range(1, num_cols):
+                    # Check header width (date)
+                    canvas_obj.setFont("Helvetica-Bold", font_size)
+                    header_text = str(headers[col_idx]) if col_idx < len(headers) else ''
+                    header_width = canvas_obj.stringWidth(header_text, "Helvetica-Bold", font_size)
+                    
+                    # Check content widths (day, subject) - with bounds checking
+                    canvas_obj.setFont("Helvetica", font_size)
+                    day_idx = col_idx - 1
+                    day_text = str(days[day_idx]) if day_idx < len(days) else ''
+                    day_width = canvas_obj.stringWidth(day_text, "Helvetica", font_size)
+                    
+                    subject_idx = col_idx - 1
+                    subject_text = str(subjects[subject_idx]) if subject_idx < len(subjects) else ''
+                    subject_width = canvas_obj.stringWidth(subject_text, "Helvetica", font_size)
+                    
+                    # Find maximum width needed for this column
+                    col_min_width = max(header_width, day_width, subject_width) + 2 * cell_padding
+                    col_min_width = max(col_min_width, min_col_width)
+                    min_widths.append(col_min_width)
+                
+                # Calculate total minimum width needed
+                total_min_width = sum(min_widths)
+                
+                # If content fits within available width, use calculated widths (with some padding)
+                if total_min_width <= table_width:
+                    # Use calculated widths with a small buffer
+                    col_widths = [w * 1.05 for w in min_widths]  # 5% buffer
+                    # Adjust to exactly fit table_width
+                    total_current = sum(col_widths)
+                    if total_current > table_width:
+                        scale_factor = table_width / total_current
+                        col_widths = [w * scale_factor for w in col_widths]
+                else:
+                    # Content is too wide - scale down proportionally but ensure minimum
+                    scale_factor = (table_width - min_widths[0]) / sum(min_widths[1:])
+                    
+                    # First column gets its minimum width
+                    first_col_width = min_widths[0]
+                    
+                    # Other columns scale proportionally but not below minimum
+                    remaining_width = table_width - first_col_width
+                    date_cols_min_total = sum(min_widths[1:])
+                    
+                    if date_cols_min_total <= remaining_width:
+                        # Can fit all columns at minimum - distribute remaining space proportionally
+                        col_widths = [first_col_width]
+                        for i in range(1, num_cols):
+                            base_width = min_widths[i]
+                            extra_space = (remaining_width - date_cols_min_total) * (base_width / date_cols_min_total)
+                            col_widths.append(base_width + extra_space)
+                    else:
+                        # Must scale below minimum - use proportional scaling
+                        col_widths = [first_col_width]
+                        for i in range(1, num_cols):
+                            proportional_width = min_widths[i] * (remaining_width / date_cols_min_total)
+                            col_widths.append(max(proportional_width, min_col_width * 0.8))  # Allow 80% of minimum
+                    
+                    # Final adjustment to ensure total equals table_width
+                    total_current = sum(col_widths)
+                    if abs(total_current - table_width) > 0.1:
+                        scale_factor = table_width / total_current if total_current > 0 else 1.0
+                        col_widths = [w * scale_factor for w in col_widths]
+                
+                # Ensure we have the correct number of column widths
+                if len(col_widths) != num_cols:
+                    logger.warning(f"Column width count mismatch: expected {num_cols}, got {len(col_widths)}")
+                    # Fallback: use equal widths
+                    first_col_width = table_width * 0.15
+                    date_col_width = (table_width - first_col_width) / max(1, num_cols - 1)
+                    col_widths = [first_col_width] + [date_col_width] * (num_cols - 1)
                 
                 # Draw table
                 self._draw_table(

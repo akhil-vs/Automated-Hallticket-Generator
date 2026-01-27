@@ -64,8 +64,8 @@ def health_check():
 @app.route('/api/generate', methods=['POST', 'OPTIONS'])
 def generate_hall_tickets():
     """Generate hall tickets from uploaded files."""
-    if request.method == 'OPTIONS':
-        return '', 200
+    """if request.method == 'OPTIONS':
+        return '', 200"""
     """Generate hall tickets from uploaded files."""
     try:
         # Get form data
@@ -74,6 +74,9 @@ def generate_hall_tickets():
         examination_name = request.form.get('examination_name', '').strip()
         logo_path = request.files.get('logo')
         signature_path = request.files.get('signature')
+        
+        # Get show_photo_box setting (default: True)
+        show_photo_box = request.form.get('show_photo_box', 'true').lower() == 'true'
         
         # Get examination timing data (optional)
         examination_timing = None
@@ -131,7 +134,12 @@ def generate_hall_tickets():
             
             signature_file_path = None
             if signature_path and signature_path.filename:
-                signature_file_path = work_dir / 'signature.png'
+                # Preserve original extension or default to .png
+                original_ext = Path(signature_path.filename).suffix.lower()
+                if original_ext in ['.png', '.jpg', '.jpeg']:
+                    signature_file_path = work_dir / f'signature{original_ext}'
+                else:
+                    signature_file_path = work_dir / 'signature.png'
                 signature_path.save(signature_file_path)
             
             # Validate inputs
@@ -158,7 +166,8 @@ def generate_hall_tickets():
                 logo_path=str(logo_file_path) if logo_file_path else None,
                 signature_path=str(signature_file_path) if signature_file_path else None,
                 examination_name=examination_name if examination_name else None,
-                examination_timing=examination_timing
+                examination_timing=examination_timing,
+                show_photo_box=show_photo_box
             )
             
             # Validate files exist before processing

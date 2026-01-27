@@ -378,6 +378,20 @@ def main():
     )
     
     parser.add_argument(
+        '--show-photo-box',
+        action='store_true',
+        default=True,
+        help='Include photo box and "AFFIX PHOTO HERE" text on hall tickets (default: True)'
+    )
+    
+    parser.add_argument(
+        '--no-photo-box',
+        action='store_false',
+        dest='show_photo_box',
+        help='Remove photo box and "AFFIX PHOTO HERE" text from hall tickets'
+    )
+    
+    parser.add_argument(
         '--config-file',
         help='Path to JSON/YAML configuration file with school details (overrides command-line arguments)'
     )
@@ -451,7 +465,8 @@ def main():
             school_address=args.school_address,
             logo_path=args.logo_path,
             signature_path=args.signature_path,
-            examination_name=args.examination_name
+            examination_name=args.examination_name,
+            show_photo_box=args.show_photo_box
         )
     
     is_valid, errors = school_config.validate()

@@ -222,8 +222,14 @@ class HallTicketGenerator:
         content_height = card_height - 2 * padding
         
         # Photo position: top-right corner (inside border with padding)
+        # Only calculate photo position if photo box is enabled
+        show_photo_box = getattr(self.config, 'show_photo_box', True)
         photo_x = content_x_start + content_width - photo_width - photo_right_margin -25
         photo_y = content_y_top - photo_height - 5 * mm_to_pt - 25  # 5mm from top
+        
+        # If photo box is disabled, adjust text area to use full width
+        if not show_photo_box:
+            photo_x = content_x_start + content_width  # Move photo_x beyond content area
         
         # --- 1. DRAW OUTER BORDER ---
         canvas_obj.setStrokeColor(colors.black)
@@ -329,9 +335,12 @@ class HallTicketGenerator:
         ad_no = str(student_data.get('admission_number', 'N/A'))
         roll_no = str(student_data.get('roll_number', 'N/A'))
         
-        # Calculate positions to avoid photo overlap
+        # Calculate positions to avoid photo overlap (only if photo box is shown)
         # Ensure text area doesn't extend beyond photo_x
-        max_text_width = photo_x - content_x_start - left_margin - 5 * mm_to_pt
+        if show_photo_box:
+            max_text_width = photo_x - content_x_start - left_margin - 5 * mm_to_pt
+        else:
+            max_text_width = content_width - left_margin - 5 * mm_to_pt  # Use full width
         
         # Ad.No
         ad_text = f"Admn.No: {ad_no}"
@@ -340,8 +349,8 @@ class HallTicketGenerator:
         # Roll No - positioned to the right of Ad.No, but not overlapping photo
         roll_text = f"Roll No: {roll_no}"
         roll_x = content_x_start + left_margin + 75 * mm_to_pt
-        # Check if Roll No would overlap with photo, if so, move it
-        if roll_x + canvas_obj.stringWidth(roll_text, "Helvetica", 9) > photo_x - 5 * mm_to_pt:
+        # Check if Roll No would overlap with photo, if so, move it (only if photo box is shown)
+        if show_photo_box and roll_x + canvas_obj.stringWidth(roll_text, "Helvetica", 9) > photo_x - 5 * mm_to_pt:
             roll_x = photo_x - canvas_obj.stringWidth(roll_text, "Helvetica", 9) - 5 * mm_to_pt
         canvas_obj.drawString(roll_x, detail_start_y, roll_text)
         
@@ -363,27 +372,38 @@ class HallTicketGenerator:
         canvas_obj.drawString(content_x_start + left_margin + 210, detail_start_y - line_spacing, class_text)
         
         # --- 4. RIGHT SIDE: Photo Box (Top-Right) ---
-        # Ensure photo stays within content area
-        if photo_x + photo_width > content_x_start + content_width:
-            photo_x = content_x_start + content_width - photo_width - photo_right_margin
-        if photo_y < content_y_bottom:
-            photo_y = content_y_bottom
-        
-        canvas_obj.setStrokeColor(colors.black)
-        canvas_obj.setLineWidth(0.2)
-        canvas_obj.rect(photo_x, photo_y, photo_width, photo_height, fill=0, stroke=1)
-        
-        if student_photo:
-            try:
-                photo_buffer = io.BytesIO()
-                student_photo.save(photo_buffer, format='PNG')
-                photo_buffer.seek(0)
-                canvas_obj.drawImage(ImageReader(photo_buffer), photo_x, photo_y,
-                                   width=photo_width, height=photo_height, 
-                                   preserveAspectRatio=True, mask='auto')
-            except Exception as e:
-                logger.warning(f"Could not draw photo: {e}")
-                # Fall through to placeholder
+        # Only draw photo box if show_photo_box is enabled
+        if show_photo_box:
+            # Ensure photo stays within content area
+            if photo_x + photo_width > content_x_start + content_width:
+                photo_x = content_x_start + content_width - photo_width - photo_right_margin
+            if photo_y < content_y_bottom:
+                photo_y = content_y_bottom
+            
+            canvas_obj.setStrokeColor(colors.black)
+            canvas_obj.setLineWidth(0.2)
+            canvas_obj.rect(photo_x, photo_y, photo_width, photo_height, fill=0, stroke=1)
+            
+            if student_photo:
+                try:
+                    photo_buffer = io.BytesIO()
+                    student_photo.save(photo_buffer, format='PNG')
+                    photo_buffer.seek(0)
+                    canvas_obj.drawImage(ImageReader(photo_buffer), photo_x, photo_y,
+                                       width=photo_width, height=photo_height, 
+                                       preserveAspectRatio=True, mask='auto')
+                except Exception as e:
+                    logger.warning(f"Could not draw photo: {e}")
+                    # Fall through to placeholder
+                    canvas_obj.setFont("Helvetica", 5)
+                    canvas_obj.setFillColor(colors.HexColor('#969696'))
+                    text = "AFFIX PHOTO HERE"
+                    text_width = canvas_obj.stringWidth(text, "Helvetica", 5)
+                    canvas_obj.drawString(photo_x + (photo_width - text_width) / 2, 
+                                        photo_y + photo_height / 2, text)
+                    canvas_obj.setFillColor(colors.black)
+            else:
+                # Placeholder text
                 canvas_obj.setFont("Helvetica", 5)
                 canvas_obj.setFillColor(colors.HexColor('#969696'))
                 text = "AFFIX PHOTO HERE"
@@ -391,15 +411,6 @@ class HallTicketGenerator:
                 canvas_obj.drawString(photo_x + (photo_width - text_width) / 2, 
                                     photo_y + photo_height / 2, text)
                 canvas_obj.setFillColor(colors.black)
-        else:
-            # Placeholder text
-            canvas_obj.setFont("Helvetica", 5)
-            canvas_obj.setFillColor(colors.HexColor('#969696'))
-            text = "AFFIX PHOTO HERE"
-            text_width = canvas_obj.stringWidth(text, "Helvetica", 5)
-            canvas_obj.drawString(photo_x + (photo_width - text_width) / 2, 
-                                photo_y + photo_height / 2, text)
-            canvas_obj.setFillColor(colors.black)
         
         # --- 5. TIMETABLE TABLE ---
         # Position timetable below student details, ensuring it doesn't overlap with photo or footer
@@ -656,24 +667,38 @@ class HallTicketGenerator:
         # Principal signature (if available) - above "Principal" text
         if self.config.signature_path and self.config.signature_path.exists():
             try:
-                sig_x = principal_x
-                sig_y = footer_y + 3 * mm_to_pt
                 sig_width = 25 * mm_to_pt
                 sig_height = 8 * mm_to_pt
+                sig_spacing = 2 * mm_to_pt  # Space between signature and "Principal" text
+                
+                # Center signature above "Principal" text
+                # principal_x is the left edge of "Principal" text
+                # Center the signature relative to the text width
+                sig_x = principal_x + (principal_text_width - sig_width) / 2
+                sig_y = footer_y + sig_spacing  # Position above the text with spacing
                 
                 # Ensure signature stays within bounds
+                if sig_x < content_x_start:
+                    sig_x = content_x_start
                 if sig_x + sig_width > content_x_start + content_width:
                     sig_x = content_x_start + content_width - sig_width
                 if sig_y + sig_height > content_y_top:
                     sig_y = content_y_top - sig_height
                 
                 signature_img = PILImage.open(self.config.signature_path)
+                # Handle transparency for PNG images (similar to logo)
+                if signature_img.mode in ('P', 'LA') or (signature_img.mode == 'RGBA' and signature_img.info.get('transparency', 0)):
+                    signature_img = signature_img.convert('RGBA')
+                else:
+                    signature_img = signature_img.convert('RGB')
+                
                 signature_img.thumbnail((sig_width, sig_height), PILImage.Resampling.LANCZOS)
                 sig_buffer = io.BytesIO()
                 signature_img.save(sig_buffer, format='PNG')
                 sig_buffer.seek(0)
                 canvas_obj.drawImage(ImageReader(sig_buffer), sig_x, sig_y,
-                                   width=sig_width, height=sig_height, preserveAspectRatio=True)
+                                   width=sig_width, height=sig_height, 
+                                   preserveAspectRatio=True, mask='auto')
             except Exception as e:
                 logger.warning(f"Could not draw signature: {e}")
         

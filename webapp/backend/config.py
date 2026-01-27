@@ -17,7 +17,8 @@ class SchoolConfig:
         academic_year: Optional[str] = None,
         principal_name: Optional[str] = None,
         examination_name: Optional[str] = None,
-        examination_timing: Optional[dict] = None
+        examination_timing: Optional[dict] = None,
+        show_photo_box: bool = True
     ):
         """
         Initialize school configuration.
@@ -31,6 +32,7 @@ class SchoolConfig:
             principal_name: Name of the principal
             examination_name: Name of the examination (e.g., "ANNUAL EXAMINATION ADMIT CARD")
             examination_timing: Dictionary with examination timing details (optional)
+            show_photo_box: Whether to show the photo box and "AFFIX PHOTO HERE" text (default: True)
         """
         self.school_name = school_name
         self.school_address = school_address
@@ -40,6 +42,7 @@ class SchoolConfig:
         self.principal_name = principal_name
         self.examination_name = examination_name
         self.examination_timing = examination_timing or self._default_timing()
+        self.show_photo_box = show_photo_box
     
     def _default_timing(self) -> dict:
         """Return default examination timing."""
@@ -85,5 +88,6 @@ class SchoolConfig:
             academic_year=config_dict.get("academic_year"),
             principal_name=config_dict.get("principal_name"),
             examination_name=config_dict.get("examination_name"),
-            examination_timing=config_dict.get("examination_timing")
+            examination_timing=config_dict.get("examination_timing"),
+            show_photo_box=config_dict.get("show_photo_box", True)
         )

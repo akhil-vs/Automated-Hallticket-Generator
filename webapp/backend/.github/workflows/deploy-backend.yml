@@ -1,0 +1,65 @@
+name: Deploy Backend to VM
+
+on:
+  push:
+    paths:
+      - 'webapp/backend/**'
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        working-directory: ./webapp/backend
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/hallticket-backend:${{ github.sha }} .
+          docker tag ${{ secrets.DOCKER_USERNAME }}/hallticket-backend:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/hallticket-backend:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/hallticket-backend:${{ github.sha }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/hallticket-backend:latest
+
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: ${{ secrets.VM_SSH_PORT || 22 }}
+          script: |
+            # Log in to Docker Hub (if using private repo)
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+            
+            # Pull latest image
+            docker pull ${{ secrets.DOCKER_USERNAME }}/hallticket-backend:latest
+            
+            # Stop and remove old container
+            docker stop hallticket-backend || true
+            docker rm hallticket-backend || true
+            
+            # Run new container
+            docker run -d \
+              --name hallticket-backend \
+              -p 5001:5001 \
+              -e FLASK_ENV=production \
+              -e PYTHONPATH=/app \
+              --restart unless-stopped \
+              ${{ secrets.DOCKER_USERNAME }}/hallticket-backend:latest
+            
+            # Clean up old images
+            docker image prune -f
+            
+            # Verify
+            sleep 5
+            docker ps | grep hallticket-backend
+            curl -f http://localhost:5001/api/health || exit 1

@@ -17,7 +17,7 @@ COPY . .
 
 # Set Python path
 ENV PYTHONPATH=/app
-
+ 
 # Expose port
 EXPOSE 5001
 

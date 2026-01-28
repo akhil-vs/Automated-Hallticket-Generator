@@ -8,6 +8,24 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
+# Fix for ReportLab compatibility with newer OpenSSL/Python versions
+# Patch hashlib.md5 to handle usedforsecurity parameter gracefully
+import hashlib
+_original_md5 = hashlib.md5
+def _patched_md5(*args, **kwargs):
+    # Remove usedforsecurity if it's not supported by the underlying implementation
+    if 'usedforsecurity' in kwargs:
+        # Try with the parameter first
+        try:
+            return _original_md5(*args, **kwargs)
+        except TypeError:
+            # If usedforsecurity is not supported, remove it and try again
+            kwargs_copy = kwargs.copy()
+            kwargs_copy.pop('usedforsecurity')
+            return _original_md5(*args, **kwargs_copy)
+    return _original_md5(*args, **kwargs)
+hashlib.md5 = _patched_md5
+
 from excel_reader import StudentDetailsReader, TimetableReader
 from photo_loader import PhotoLoader
 from pdf_generator import HallTicketGenerator

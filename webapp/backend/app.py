@@ -5,6 +5,24 @@ import os
 import sys
 from pathlib import Path
 
+# Fix for ReportLab compatibility with newer OpenSSL/Python versions
+# Patch hashlib.md5 to handle usedforsecurity parameter gracefully
+import hashlib
+_original_md5 = hashlib.md5
+def _patched_md5(*args, **kwargs):
+    # Remove usedforsecurity if it's not supported by the underlying implementation
+    if 'usedforsecurity' in kwargs:
+        # Try with the parameter first
+        try:
+            return _original_md5(*args, **kwargs)
+        except TypeError:
+            # If usedforsecurity is not supported, remove it and try again
+            kwargs_copy = kwargs.copy()
+            kwargs_copy.pop('usedforsecurity')
+            return _original_md5(*args, **kwargs_copy)
+    return _original_md5(*args, **kwargs)
+hashlib.md5 = _patched_md5
+
 # Force stdout to be unbuffered so print statements appear immediately
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(line_buffering=True)

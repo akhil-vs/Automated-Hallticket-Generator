@@ -57,9 +57,45 @@ jobs:
               ${{ secrets.DOCKER_USERNAME }}/hallticket-backend:latest
             
             # Clean up old images
+            echo "Cleaning up old images..."
             docker image prune -f
             
             # Verify
-            sleep 5
-            docker ps | grep hallticket-backend
-            curl -f http://localhost:5001/api/health || exit 1
+            echo "Waiting for container to start..."
+            sleep 10
+            echo "Verifying deployment..."
+            if ! docker ps | grep -q hallticket-backend; then
+              echo "✗ Container failed to start"
+              docker logs hallticket-backend
+              exit 1
+            fi
+            echo "✓ Container is running"
+            
+            # Health check with retries
+            echo "Checking health endpoint..."
+            MAX_RETRIES=10
+            RETRY_COUNT=0
+            HEALTH_CHECK_PASSED=false
+            
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              if curl -f -s http://localhost:5001/api/health > /dev/null 2>&1; then
+                echo "✓ Health check passed"
+                HEALTH_CHECK_PASSED=true
+                break
+              else
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                echo "Health check attempt $RETRY_COUNT/$MAX_RETRIES failed, retrying in 3 seconds..."
+                sleep 3
+              fi
+            done
+            
+            if [ "$HEALTH_CHECK_PASSED" = false ]; then
+              echo "✗ Health check failed after $MAX_RETRIES attempts"
+              echo "Container logs:"
+              docker logs hallticket-backend
+              echo "Checking if port is listening:"
+              docker exec hallticket-backend netstat -tlnp || true
+              exit 1
+            fi
+            
+            echo "Deployment successful!"

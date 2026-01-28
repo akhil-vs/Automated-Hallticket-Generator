@@ -19,7 +19,7 @@ COPY . .
 ENV PYTHONPATH=/app
  
 # Expose port
-EXPOSE 5001
+EXPOSE 5000
 
 # Run with gunicorn
 CMD ["gunicorn", "-c", "gunicorn_config.py", "app:app"]

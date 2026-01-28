@@ -50,7 +50,7 @@ jobs:
             # Run new container
             docker run -d \
               --name hallticket-backend \
-              -p 5001:5001 \
+              -p 5001:5000 \
               -e FLASK_ENV=production \
               -e PYTHONPATH=/app \
               --restart unless-stopped \

@@ -131,20 +131,28 @@ header p {
   background: var(--primary);
 }
 
-/* Instructions link */
-.instructions-link {
-  display: inline-block;
-  margin-top: 12px;
+/* Header action buttons – same size */
+.instructions-link,
+.template-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   padding: 10px 18px;
-  background: transparent;
-  color: var(--accent);
-  border: 2px solid var(--accent);
   border-radius: var(--radius-sm);
   font-size: 0.9rem;
   font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, transform 0.2s;
   font-family: var(--font);
+  transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.2s;
+  box-sizing: border-box;
+}
+
+.instructions-link {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  cursor: pointer;
+  text-decoration: none;
 }
 
 .instructions-link:hover {
@@ -153,21 +161,11 @@ header p {
   transform: translateY(-1px);
 }
 
-/* Template link */
 .template-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 12px;
-  padding: 8px 14px;
   color: var(--primary);
-  font-size: 0.875rem;
-  font-weight: 500;
   text-decoration: none;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   background: var(--surface);
-  transition: background 0.2s, border-color 0.2s;
 }
 
 .template-link:hover {
@@ -334,6 +332,84 @@ header p {
 
 .form-group:last-child {
   margin-bottom: 0;
+}
+
+.timing-hint {
+  color: var(--charcoal);
+  font-size: 0.875rem;
+  margin: -8px 0 12px 0;
+}
+
+.timing-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.timing-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.timing-label-input,
+.timing-value-input {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-family: var(--font);
+}
+
+.timing-label-input {
+  max-width: 200px;
+}
+
+.timing-value-input {
+  max-width: 260px;
+}
+
+.timing-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--charcoal);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.timing-remove-btn:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.timing-add-btn {
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.timing-add-btn:hover {
+  background: var(--accent);
+  color: white;
 }
 
 .timing-fields-grid {

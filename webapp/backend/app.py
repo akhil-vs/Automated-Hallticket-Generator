@@ -28,6 +28,7 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(line_buffering=True)
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
+import json
 import tempfile
 import shutil
 import zipfile
@@ -130,9 +131,32 @@ def generate_hall_tickets():
         print(f"[DEBUG] Parsed show_photo_box: {show_photo_box} (type: {type(show_photo_box)})", flush=True)
         logger.info(f"Received show_photo_box value: '{show_photo_box_str}' -> {show_photo_box} (type: {type(show_photo_box)})")
         
-        # Get examination timing data (optional)
+        # Get examination timing data (optional): new format is timing_rows JSON
         examination_timing = None
-        if request.form.get('reporting_time'):
+        timing_rows_raw = request.form.get('timing_rows')
+        if timing_rows_raw:
+            try:
+                rows = json.loads(timing_rows_raw)
+                if isinstance(rows, list) and len(rows) > 0:
+                    # Normalize to list of {label, value}; filter empty
+                    normalized = []
+                    for r in rows:
+                        if isinstance(r, dict):
+                            label = (r.get('label') or '').strip()
+                            value = (r.get('value') or '').strip()
+                        elif isinstance(r, (list, tuple)) and len(r) >= 2:
+                            label = str(r[0]).strip()
+                            value = str(r[1]).strip()
+                        else:
+                            continue
+                        if label or value:
+                            normalized.append({'label': label or '—', 'value': value or '—'})
+                    if normalized:
+                        examination_timing = {'rows': normalized}
+            except (json.JSONDecodeError, TypeError):
+                pass
+        if examination_timing is None and request.form.get('reporting_time'):
+            # Backward compatibility: legacy fixed keys
             examination_timing = {
                 'reporting_time': request.form.get('reporting_time', '').strip(),
                 'entry_time': request.form.get('entry_time', '').strip(),

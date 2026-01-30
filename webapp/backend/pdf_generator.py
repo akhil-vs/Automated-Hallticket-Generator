@@ -595,14 +595,17 @@ class HallTicketGenerator:
         # Get examination timing data
         timing_data = self.config.examination_timing or {}
         
-        # Prepare timing table data
-        timing_rows = [
-            ['Reporting Time', timing_data.get('reporting_time', '08:30 a.m.')],
-            ['Entry to Exam Hall', timing_data.get('entry_time', '08:45 a.m.')],
-            ['Cool-off Time', timing_data.get('cooloff_time', '09:00 a.m. to 09:15 a.m.')],
-            ['Reading Time', timing_data.get('reading_time', '09:15 a.m. to 09:30 a.m.')],
-            ['Writing Time', timing_data.get('writing_time', '09:30 a.m. to 11:30 a.m.')]
-        ]
+        # Prepare timing table data: support editable rows or legacy fixed keys
+        if timing_data.get('rows'):
+            timing_rows = [[r.get('label', '—'), r.get('value', '—')] for r in timing_data['rows']]
+        else:
+            timing_rows = [
+                ['Reporting Time', timing_data.get('reporting_time', '08:30 a.m.')],
+                ['Entry to Exam Hall', timing_data.get('entry_time', '08:45 a.m.')],
+                ['Cool-off Time', timing_data.get('cooloff_time', '09:00 a.m. to 09:15 a.m.')],
+                ['Reading Time', timing_data.get('reading_time', '09:15 a.m. to 09:30 a.m.')],
+                ['Writing Time', timing_data.get('writing_time', '09:30 a.m. to 11:30 a.m.')]
+            ]
         timing_col_widths = [timing_table_width * 0.5, timing_table_width * 0.5]
         
         # Draw timing table directly (no heading above it)

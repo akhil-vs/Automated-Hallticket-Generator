@@ -14,22 +14,25 @@ function App() {
   const [currentStep, setCurrentStep] = useState(1)
   const [previewData, setPreviewData] = useState(null)
   const [previewLoading, setPreviewLoading] = useState(false)
-  const [formData, setFormData] = useState({
+  const getDefaultTimingRows = () => [
+    { id: crypto.randomUUID(), label: 'Reporting Time', value: '08:30 a.m.' },
+    { id: crypto.randomUUID(), label: 'Entry to Exam Hall', value: '08:45 a.m.' },
+    { id: crypto.randomUUID(), label: 'Cool-off Time', value: '09:00 a.m. to 09:15 a.m.' },
+    { id: crypto.randomUUID(), label: 'Reading Time', value: '09:15 a.m. to 09:30 a.m.' },
+    { id: crypto.randomUUID(), label: 'Writing Time', value: '09:30 a.m. to 11:30 a.m.' }
+  ]
+  const [formData, setFormData] = useState(() => ({
     school_name: '',
     school_address: '',
     examination_name: '',
-    reporting_time: '08:30 a.m.',
-    entry_time: '08:45 a.m.',
-    cooloff_time: '09:00 a.m. to 09:15 a.m.',
-    reading_time: '09:15 a.m. to 09:30 a.m.',
-    writing_time: '09:30 a.m. to 11:30 a.m.',
+    timing_rows: getDefaultTimingRows(),
     show_photo_box: true,
     students_file: null,
     timetable_file: null,
     photos_file: null,
     logo_file: null,
     signature_file: null
-  })
+  }))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
@@ -351,11 +354,10 @@ function App() {
       formDataToSend.append('school_name', formData.school_name)
       formDataToSend.append('school_address', formData.school_address)
       formDataToSend.append('examination_name', formData.examination_name)
-      formDataToSend.append('reporting_time', formData.reporting_time)
-      formDataToSend.append('entry_time', formData.entry_time)
-      formDataToSend.append('cooloff_time', formData.cooloff_time)
-      formDataToSend.append('reading_time', formData.reading_time)
-      formDataToSend.append('writing_time', formData.writing_time)
+      const timingPayload = formData.timing_rows
+        .filter(row => (row.label?.trim() || row.value?.trim()))
+        .map(({ label, value }) => ({ label: (label || '').trim(), value: (value || '').trim() }))
+      formDataToSend.append('timing_rows', JSON.stringify(timingPayload))
       formDataToSend.append('show_photo_box', formData.show_photo_box ? 'true' : 'false')
       formDataToSend.append('request_id', `req_${Date.now()}`)
       
@@ -764,64 +766,71 @@ function App() {
 
             <div className="form-section">
               <h2>Examination Timing (Optional)</h2>
-              <div className="timing-fields-grid">
-                <div className="form-group">
-                  <label htmlFor="reporting_time">Reporting Time</label>
-                  <input
-                    type="text"
-                    id="reporting_time"
-                    name="reporting_time"
-                    value={formData.reporting_time}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 08:30 a.m."
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="entry_time">Entry to Exam Hall</label>
-                  <input
-                    type="text"
-                    id="entry_time"
-                    name="entry_time"
-                    value={formData.entry_time}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 08:45 a.m."
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="cooloff_time">Cool-off Time</label>
-                  <input
-                    type="text"
-                    id="cooloff_time"
-                    name="cooloff_time"
-                    value={formData.cooloff_time}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 09:00 a.m. to 09:15 a.m."
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="reading_time">Reading Time</label>
-                  <input
-                    type="text"
-                    id="reading_time"
-                    name="reading_time"
-                    value={formData.reading_time}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 09:15 a.m. to 09:30 a.m."
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="writing_time">Writing Time</label>
-                  <input
-                    type="text"
-                    id="writing_time"
-                    name="writing_time"
-                    value={formData.writing_time}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 09:30 a.m. to 11:30 a.m."
-                  />
-                </div>
+              <p className="timing-hint">Edit labels and times; add or remove rows as needed.</p>
+              <div className="timing-rows">
+                {formData.timing_rows.map((row, index) => (
+                  <div key={row.id} className="timing-row">
+                    <input
+                      type="text"
+                      aria-label={`Timing ${index + 1} label`}
+                      value={row.label}
+                      onChange={(e) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          timing_rows: prev.timing_rows.map((r, i) =>
+                            i === index ? { ...r, label: e.target.value } : r
+                          )
+                        }))
+                      }}
+                      placeholder="e.g., Reporting Time"
+                      className="timing-label-input"
+                    />
+                    <input
+                      type="text"
+                      aria-label={`Timing ${index + 1} value`}
+                      value={row.value}
+                      onChange={(e) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          timing_rows: prev.timing_rows.map((r, i) =>
+                            i === index ? { ...r, value: e.target.value } : r
+                          )
+                        }))
+                      }}
+                      placeholder="e.g., 08:30 a.m."
+                      className="timing-value-input"
+                    />
+                    <button
+                      type="button"
+                      className="timing-remove-btn"
+                      onClick={() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          timing_rows: prev.timing_rows.filter((_, i) => i !== index)
+                        }))
+                      }}
+                      aria-label={`Remove timing row ${index + 1}`}
+                      title="Remove row"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                        <path d="M4 4l8 8M12 4l-8 8" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
               </div>
-              <small>Leave empty to use default timings</small>
+              <button
+                type="button"
+                className="timing-add-btn"
+                onClick={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    timing_rows: [...prev.timing_rows, { id: crypto.randomUUID(), label: '', value: '' }]
+                  }))
+                }}
+              >
+                + Add timing row
+              </button>
             </div>
           </div>
 

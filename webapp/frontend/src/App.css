@@ -428,6 +428,19 @@ header p {
   margin-bottom: 0;
 }
 
+.upload-files-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+@media (min-width: 640px) {
+  .upload-files-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .form-group label {
   display: block;
   margin-bottom: 6px;

@@ -836,59 +836,61 @@ function App() {
 
           <div className="form-section">
             <h2>Upload Files</h2>
-            <div className="form-group">
-              <label htmlFor="students_file">Student Details Excel *</label>
-              <input
-                type="file"
-                id="students_file"
-                name="students_file"
-                accept=".xlsx,.xls"
-                onChange={handleFileChange}
-                className={fieldErrors.students_file ? 'input-error' : ''}
-              />
-              {fieldErrors.students_file && (
-                <span className="field-error">{fieldErrors.students_file}</span>
-              )}
-              {formData.students_file && (
-                <div className="file-display">
-                  <span className="file-name">{formData.students_file.name}</span>
-                  <button
-                    type="button"
-                    className="remove-file-btn"
-                    onClick={() => handleFileRemove('students_file')}
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-              <small>Excel file with student details (multiple sheets, one per class)</small>
-            </div>
-            <div className="form-group">
-              <label htmlFor="timetable_file">Timetable Excel *</label>
-              <input
-                type="file"
-                id="timetable_file"
-                name="timetable_file"
-                accept=".xlsx,.xls"
-                onChange={handleFileChange}
-                className={fieldErrors.timetable_file ? 'input-error' : ''}
-              />
-              {fieldErrors.timetable_file && (
-                <span className="field-error">{fieldErrors.timetable_file}</span>
-              )}
-              {formData.timetable_file && (
-                <div className="file-display">
-                  <span className="file-name">{formData.timetable_file.name}</span>
-                  <button
-                    type="button"
-                    className="remove-file-btn"
-                    onClick={() => handleFileRemove('timetable_file')}
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-              <small>Excel file with exam timetable</small>
+            <div className="upload-files-grid">
+              <div className="form-group">
+                <label htmlFor="students_file">Student Details Excel *</label>
+                <input
+                  type="file"
+                  id="students_file"
+                  name="students_file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileChange}
+                  className={fieldErrors.students_file ? 'input-error' : ''}
+                />
+                {fieldErrors.students_file && (
+                  <span className="field-error">{fieldErrors.students_file}</span>
+                )}
+                {formData.students_file && (
+                  <div className="file-display">
+                    <span className="file-name">{formData.students_file.name}</span>
+                    <button
+                      type="button"
+                      className="remove-file-btn"
+                      onClick={() => handleFileRemove('students_file')}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                <small>Excel file with student details (multiple sheets, one per class)</small>
+              </div>
+              <div className="form-group">
+                <label htmlFor="timetable_file">Timetable Excel *</label>
+                <input
+                  type="file"
+                  id="timetable_file"
+                  name="timetable_file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileChange}
+                  className={fieldErrors.timetable_file ? 'input-error' : ''}
+                />
+                {fieldErrors.timetable_file && (
+                  <span className="field-error">{fieldErrors.timetable_file}</span>
+                )}
+                {formData.timetable_file && (
+                  <div className="file-display">
+                    <span className="file-name">{formData.timetable_file.name}</span>
+                    <button
+                      type="button"
+                      className="remove-file-btn"
+                      onClick={() => handleFileRemove('timetable_file')}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                <small>Excel file with exam timetable</small>
+              </div>
             </div>
             <div className="form-group">
               <label htmlFor="show_photo_box" className="switch-label">

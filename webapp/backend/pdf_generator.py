@@ -766,7 +766,8 @@ class HallTicketGenerator:
         # Principal (right side of signature area)
         principal_text = "Principal"
         principal_text_width = canvas_obj.stringWidth(principal_text, "Helvetica", 8)
-        principal_x = signature_area_x + signature_area_width - principal_text_width  # Right-aligned
+        # Move 15mm left from right edge of signature area
+        principal_x = signature_area_x + signature_area_width - principal_text_width - (15 * mm_to_pt)
         canvas_obj.drawString(principal_x, footer_y, principal_text)
         
         # Principal signature (if available) - above "Principal" text

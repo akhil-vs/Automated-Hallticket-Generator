@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Toaster, toast } from 'react-hot-toast'
+import * as XLSX from 'xlsx'
+import JSZip from 'jszip'
 import './App.css'
 
 const STEPS = [
@@ -10,6 +12,8 @@ const STEPS = [
 
 function App() {
   const [currentStep, setCurrentStep] = useState(1)
+  const [previewData, setPreviewData] = useState(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const [formData, setFormData] = useState({
     school_name: '',
     school_address: '',
@@ -180,6 +184,98 @@ function App() {
     if (fileInput) {
       fileInput.value = ''
     }
+  }
+
+  const parsePreviewData = useCallback(async () => {
+    const studentsFile = formData.students_file
+    const timetableFile = formData.timetable_file
+    const photosFile = formData.show_photo_box ? formData.photos_file : null
+
+    const studentPreview = { classes: [], countPerClass: {}, total: 0 }
+    const timetablePreview = {}
+    const photoPreview = { countPerClass: {}, total: 0 }
+
+    try {
+      if (studentsFile) {
+        const buf = await studentsFile.arrayBuffer()
+        const wb = XLSX.read(buf, { type: 'array' })
+        const sheetNames = wb.SheetNames || []
+        let total = 0
+        for (const name of sheetNames) {
+          const sheet = wb.Sheets[name]
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
+          const dataRows = rows.filter((row, i) => i >= 3 && Array.isArray(row) && row.some(cell => cell !== '' && cell != null))
+          const count = dataRows.length
+          studentPreview.classes.push(name)
+          studentPreview.countPerClass[name] = count
+          total += count
+        }
+        studentPreview.total = total
+      }
+
+      if (timetableFile) {
+        const buf = await timetableFile.arrayBuffer()
+        const wb = XLSX.read(buf, { type: 'array' })
+        const sheetNames = wb.SheetNames || []
+        for (const name of sheetNames) {
+          const sheet = wb.Sheets[name]
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
+          const previewRows = rows.slice(0, 8)
+          timetablePreview[name] = previewRows
+        }
+      }
+
+      if (photosFile) {
+        const zip = await JSZip.loadAsync(photosFile)
+        const countPerClass = {}
+        for (const [path, entry] of Object.entries(zip.files)) {
+          if (entry.dir) continue
+          const parts = path.split('/').filter(Boolean)
+          const folder = parts.length > 1 ? parts[0] : (parts[0] ? '_root' : null)
+          if (folder) {
+            countPerClass[folder] = (countPerClass[folder] || 0) + 1
+          }
+        }
+        photoPreview.countPerClass = countPerClass
+        photoPreview.total = Object.values(countPerClass).reduce((a, b) => a + b, 0)
+      }
+
+      setPreviewData({
+        studentPreview,
+        timetablePreview,
+        photoPreview
+      })
+      return true
+    } catch (err) {
+      console.error('Preview parse error:', err)
+      toast.error('Could not read files for preview. Check file format.')
+      return false
+    }
+  }, [formData.students_file, formData.timetable_file, formData.photos_file, formData.show_photo_box])
+
+  const handleContinueToReview = async () => {
+    const errs = {}
+    const sn = validateField('school_name', formData.school_name)
+    if (sn) errs.school_name = sn
+    const sa = validateField('school_address', formData.school_address)
+    if (sa) errs.school_address = sa
+    const sf = validateFile(formData.students_file, ['.xlsx', '.xls'], 50, true, 'students_file')
+    if (sf) errs.students_file = sf
+    const tf = validateFile(formData.timetable_file, ['.xlsx', '.xls'], 50, true, 'timetable_file')
+    if (tf) errs.timetable_file = tf
+    if (formData.show_photo_box) {
+      const pf = validateFile(formData.photos_file, ['.zip'], 100, true, 'photos_file')
+      if (pf) errs.photos_file = pf
+    }
+    setFieldErrors(errs)
+    if (Object.keys(errs).length > 0) {
+      toast.error(Object.values(errs)[0])
+      return
+    }
+    setPreviewLoading(true)
+    const ok = await parsePreviewData()
+    setPreviewLoading(false)
+    if (ok) setCurrentStep(2)
   }
 
   const handleSubmit = async (e) => {
@@ -376,8 +472,8 @@ function App() {
 
         <nav className="stepper" aria-label="Progress">
           {STEPS.map((step, i) => (
-            <div key={step.id} className={`stepper-step ${currentStep === step.id ? 'active' : ''} ${currentStep > step.id ? 'done' : ''}`}>
-              <span className="stepper-number" aria-hidden="true">{currentStep > step.id ? '✓' : step.id}</span>
+            <div key={step.id} className={`stepper-step ${currentStep === step.id && !(step.id === 3 && success) ? 'active' : ''} ${currentStep > step.id || (step.id === 3 && success) ? 'done' : ''}`}>
+              <span className="stepper-number" aria-hidden="true">{currentStep > step.id || (step.id === 3 && success) ? '✓' : step.id}</span>
               <span className="stepper-label">{step.label}</span>
               {i < STEPS.length - 1 && <span className="stepper-connector" />}
             </div>
@@ -463,18 +559,92 @@ function App() {
               </div>
             )}
 
-            {currentStep === 2 && (
-              <div className="review-summary">
-                <h3>Review your inputs</h3>
-                <ul>
-                  <li>School: {formData.school_name || '—'}</li>
-                  <li>Student file: {formData.students_file?.name || '—'}</li>
-                  <li>Timetable file: {formData.timetable_file?.name || '—'}</li>
-                  {formData.show_photo_box && <li>Photos: {formData.photos_file?.name || 'Not uploaded'}</li>}
-                </ul>
-                <div className="step-actions" style={{ marginTop: 16 }}>
+            {currentStep === 2 && previewData && (
+              <div className="review-summary preview-content">
+                <h3>Preview &amp; Review</h3>
+                <p className="review-meta">School: <strong>{formData.school_name || '—'}</strong></p>
+
+                <section className="preview-section">
+                  <h4>Student Excel</h4>
+                  <div className="preview-table-wrap">
+                    <table className="preview-table">
+                      <thead>
+                        <tr><th>Class</th><th>Students</th></tr>
+                      </thead>
+                      <tbody>
+                        {(previewData.studentPreview?.classes || []).map(cls => (
+                          <tr key={cls}>
+                            <td>{cls}</td>
+                            <td>{previewData.studentPreview.countPerClass[cls] ?? 0}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr><th>Total</th><th>{previewData.studentPreview?.total ?? 0}</th></tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </section>
+
+                {formData.show_photo_box && (
+                  <section className="preview-section">
+                    <h4>Photos (ZIP)</h4>
+                    <div className="preview-table-wrap">
+                      <table className="preview-table">
+                        <thead>
+                          <tr><th>Class / Folder</th><th>Photos</th></tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(previewData.photoPreview?.countPerClass || {}).map(([cls, count]) => (
+                            <tr key={cls}><td>{cls}</td><td>{count}</td></tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr><th>Total</th><th>{previewData.photoPreview?.total ?? 0}</th></tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </section>
+                )}
+
+                <section className="preview-section">
+                  <h4>Timetable (per class)</h4>
+                  {Object.keys(previewData.timetablePreview || {}).length === 0 ? (
+                    <p className="preview-muted">No timetable data parsed.</p>
+                  ) : (
+                    <>
+                      {Object.entries(previewData.timetablePreview).map(([className, rows]) => (
+                        <div key={className} className="timetable-preview-block">
+                          <strong>{className}</strong>
+                          <div className="preview-table-wrap">
+                            <table className="preview-table preview-table-small">
+                              <tbody>
+                                {(rows || []).slice(0, 6).map((row, ri) => (
+                                  <tr key={ri}>
+                                    {(Array.isArray(row) ? row : []).slice(0, 6).map((cell, ci) => (
+                                      <td key={ci}>{cell != null && cell !== '' ? String(cell) : '—'}</td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </section>
+
+                <div className="step-actions" style={{ marginTop: 20 }}>
                   <button type="button" className="btn-secondary" onClick={() => setCurrentStep(1)}>Back to Edit</button>
+                  <button type="button" className="submit-btn" onClick={() => setCurrentStep(3)}>Review and confirm</button>
                 </div>
+              </div>
+            )}
+
+            {currentStep === 2 && previewLoading && (
+              <div className="review-summary">
+                <p>Loading preview…</p>
               </div>
             )}
 
@@ -760,12 +930,15 @@ function App() {
           </>
           )}
 
-          {currentStep === 2 && (
+          {currentStep === 3 && (
             <>
+              <div className="review-summary" style={{ marginBottom: 16 }}>
+                <p>Confirm and generate hall tickets.</p>
+              </div>
               <div className="step-actions">
-                <button type="button" className="btn-secondary" onClick={() => setCurrentStep(1)}>Back</button>
+                <button type="button" className="btn-secondary" onClick={() => setCurrentStep(2)}>Back</button>
                 <button type="submit" className="submit-btn" disabled={loading}>
-                  Generate Hall Tickets
+                  Generate PDF
                 </button>
               </div>
             </>
@@ -788,46 +961,14 @@ function App() {
               type="button"
               className="submit-btn"
               style={{ marginTop: 8 }}
-              onClick={() => {
-                const errs = {}
-                const sn = validateField('school_name', formData.school_name)
-                if (sn) errs.school_name = sn
-                const sa = validateField('school_address', formData.school_address)
-                if (sa) errs.school_address = sa
-                const sf = validateFile(formData.students_file, ['.xlsx', '.xls'], 50, true, 'students_file')
-                if (sf) errs.students_file = sf
-                const tf = validateFile(formData.timetable_file, ['.xlsx', '.xls'], 50, true, 'timetable_file')
-                if (tf) errs.timetable_file = tf
-                if (formData.show_photo_box) {
-                  const pf = validateFile(formData.photos_file, ['.zip'], 100, true, 'photos_file')
-                  if (pf) errs.photos_file = pf
-                }
-                setFieldErrors(errs)
-                if (Object.keys(errs).length === 0) setCurrentStep(2)
-                else toast.error(Object.values(errs)[0])
-              }}
-              disabled={loading}
+              onClick={handleContinueToReview}
+              disabled={loading || previewLoading}
             >
-              Continue to Review
+              {previewLoading ? 'Loading preview…' : 'Continue to Review'}
             </button>
           )}
         </form>
           </div>
-
-          <aside className="preview-panel" aria-label="Ticket preview">
-            <h3>Live preview</h3>
-            <div className="ticket-preview">
-              <div className="preview-school">{formData.school_name || 'School Name'}</div>
-              <div className="preview-placeholder" style={{ fontSize: '0.75rem', marginBottom: 8 }}>{formData.school_address || 'Address'}</div>
-              <div className="preview-exam">{formData.examination_name || 'ADMIT CARD'}</div>
-              <div className="preview-student">
-                <strong>Sample student</strong>
-                <div>Name: {formData.school_name ? 'Student Name' : '—'}</div>
-                <div>Roll: 1 · Reporting: {formData.reporting_time || '08:30 a.m.'}</div>
-              </div>
-              <div className="preview-placeholder" style={{ marginTop: 8 }}>QR code will appear on each ticket.</div>
-            </div>
-          </aside>
         </div>
       </div>
     </div>

@@ -9,6 +9,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from PIL import Image as PILImage
 import io
+import qrcode
 from typing import List, Dict, Optional
 from pathlib import Path
 import logging
@@ -371,6 +372,27 @@ class HallTicketGenerator:
         class_text = f"Class & Sec: {class_name}"
         canvas_obj.drawString(content_x_start + left_margin + 210, detail_start_y - line_spacing, class_text)
         
+        # --- 3b. QR CODE (Student ID for verification) ---
+        # Encode student ID: roll_number|class|admission_number for scanning
+        student_id = f"{student_data.get('roll_number', '')}|{student_data.get('class', '')}|{student_data.get('admission_number', '')}"
+        if not student_id.strip('|'):
+            student_id = str(student_data.get('roll_number', 'N/A'))
+        try:
+            qr = qrcode.QRCode(version=1, box_size=2, border=1)
+            qr.add_data(student_id)
+            qr.make(fit=True)
+            qr_img = qr.make_image(fill_color="black", back_color="white")
+            qr_size = 18 * mm_to_pt  # 18mm QR code
+            qr_x = content_x_start + content_width - qr_size - 5 * mm_to_pt  # 5mm from right
+            qr_y = content_y_bottom + 5 * mm_to_pt  # 5mm from bottom
+            qr_buffer = io.BytesIO()
+            qr_img.save(qr_buffer, format='PNG')
+            qr_buffer.seek(0)
+            canvas_obj.drawImage(ImageReader(qr_buffer), qr_x, qr_y, width=qr_size, height=qr_size,
+                                preserveAspectRatio=True)
+        except Exception as e:
+            logger.warning(f"Could not draw QR code: {e}")
+
         # --- 4. RIGHT SIDE: Photo Box (Top-Right) ---
         # Only draw photo box if show_photo_box is enabled
         if show_photo_box:

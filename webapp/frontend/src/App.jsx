@@ -1,7 +1,15 @@
 import { useState } from 'react'
+import { Toaster, toast } from 'react-hot-toast'
 import './App.css'
 
+const STEPS = [
+  { id: 1, label: 'Upload Data' },
+  { id: 2, label: 'Preview & Review' },
+  { id: 3, label: 'Generate PDF' }
+]
+
 function App() {
+  const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState({
     school_name: '',
     school_address: '',
@@ -22,6 +30,7 @@ function App() {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
+  const [showInstructions, setShowInstructions] = useState(false)
 
   const validateField = (name, value) => {
     switch (name) {
@@ -220,7 +229,9 @@ function App() {
     setFieldErrors(errors)
     
     if (Object.keys(errors).length > 0) {
-      setError('Please fix the errors in the form before submitting')
+      const firstMsg = errors[Object.keys(errors)[0]]
+      toast.error(firstMsg || 'Please fix the errors in the form')
+      setError(firstMsg)
       // Scroll to first error
       setTimeout(() => {
         const firstErrorField = Object.keys(errors)[0]
@@ -237,6 +248,7 @@ function App() {
     setLoading(true)
     setError(null)
     setSuccess(false)
+    toast.loading('Generating hall tickets...', { id: 'generate' })
 
     try {
       const formDataToSend = new FormData()
@@ -310,11 +322,13 @@ function App() {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
+      toast.success('Hall tickets generated and downloaded!', { id: 'generate' })
       setSuccess(true)
     } catch (err) {
       console.error('Error:', err)
+      toast.error(err.message || 'Something went wrong', { id: 'generate' })
       if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-        setError('Cannot connect to server. Make sure the backend is running on http://localhost:5001')
+        setError('Cannot connect to server. Make sure the backend is running.')
       } else {
         setError(err.message)
       }
@@ -323,15 +337,160 @@ function App() {
     }
   }
 
+  const hasUploadedFiles = formData.students_file && formData.timetable_file
+  const canProceedToReview = formData.school_name?.trim() && formData.school_address?.trim() && hasUploadedFiles
+  const showEmptyState = !formData.students_file && !formData.timetable_file && currentStep === 1
+
   return (
     <div className="app">
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 4000,
+          style: { fontFamily: "var(--font)", borderRadius: 8 },
+          error: { iconTheme: { primary: '#DC2626' } },
+          success: { iconTheme: { primary: '#059669' } }
+        }}
+      />
       <div className="container">
         <header>
-          <h1>🎓 Hall Ticket Generator</h1>
+          <h1>Hall Ticket Generator</h1>
           <p>Generate professional hall tickets for your students</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 12 }}>
+            <button
+              type="button"
+              className="instructions-link"
+              onClick={() => setShowInstructions(true)}
+            >
+              View instructions
+            </button>
+            <a
+              href="/student_template.csv"
+              download="student_template.csv"
+              className="template-link"
+            >
+              Download CSV template
+            </a>
+          </div>
         </header>
 
-        <form onSubmit={handleSubmit} className="form" noValidate>
+        <nav className="stepper" aria-label="Progress">
+          {STEPS.map((step, i) => (
+            <div key={step.id} className={`stepper-step ${currentStep === step.id ? 'active' : ''} ${currentStep > step.id ? 'done' : ''}`}>
+              <span className="stepper-number" aria-hidden="true">{currentStep > step.id ? '✓' : step.id}</span>
+              <span className="stepper-label">{step.label}</span>
+              {i < STEPS.length - 1 && <span className="stepper-connector" />}
+            </div>
+          ))}
+        </nav>
+
+        {showInstructions && (
+          <div className="modal-overlay" onClick={() => setShowInstructions(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>📋 Instructions for File Upload & Format</h2>
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={() => setShowInstructions(false)}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="modal-body">
+                <section className="instructions-section">
+                  <h3>Student Details Excel (Required)</h3>
+                  <ul>
+                    <li><strong>Format:</strong> .xlsx or .xls</li>
+                    <li><strong>Size:</strong> Max 50 MB</li>
+                    <li><strong>Structure:</strong> One sheet per class. Sheet names = class names (e.g., "Class 10A", "Class 10B").</li>
+                    <li><strong>Required columns:</strong> Name (or Student Name), Roll No. (or Roll Number), Admission No. (optional).</li>
+                    <li>Column names are flexible (e.g., "Roll No.", "Roll No", "roll number" all work).</li>
+                  </ul>
+                </section>
+
+                <section className="instructions-section">
+                  <h3>Timetable Excel (Required)</h3>
+                  <ul>
+                    <li><strong>Format:</strong> .xlsx or .xls</li>
+                    <li><strong>Size:</strong> Max 50 MB</li>
+                    <li><strong>Structure:</strong> One sheet per class (sheet names should match student Excel), or a single sheet used for all classes.</li>
+                    <li><strong>Horizontal format:</strong> Dates as column headers, with a "Day" row and "Subject" row. Dates can be DD/MM/YYYY or Excel serial dates.</li>
+                    <li><strong>Vertical format:</strong> Columns for Subject, Date, Time, Venue (optional).</li>
+                  </ul>
+                </section>
+
+                <section className="instructions-section">
+                  <h3>Student Photos ZIP (Required if photo box is enabled)</h3>
+                  <ul>
+                    <li><strong>Format:</strong> .zip</li>
+                    <li><strong>Size:</strong> Max 100 MB</li>
+                    <li><strong>Structure:</strong> Create folders named by class (e.g., "Class 10A", "Class 10B") inside the ZIP.</li>
+                    <li><strong>Photo filenames:</strong> Name each photo with the student&apos;s roll number or admission number (e.g., <code>123.jpg</code>, <code>45.png</code>).</li>
+                    <li>Leading zeros are matched (e.g., "0123" matches roll "123").</li>
+                  </ul>
+                </section>
+
+                <section className="instructions-section">
+                  <h3>School Logo & Principal Signature (Optional)</h3>
+                  <ul>
+                    <li><strong>Format:</strong> .png, .jpg, or .jpeg</li>
+                    <li><strong>Size:</strong> Max 10 MB each</li>
+                  </ul>
+                </section>
+
+                <section className="instructions-section">
+                  <h3>General Tips</h3>
+                  <ul>
+                    <li>Ensure class names in Student Excel sheets match Timetable sheet names (or use one timetable sheet for all).</li>
+                    <li>Leave optional timing fields empty to use defaults.</li>
+                    <li>Examination name can be left empty to use default &quot;ADMIT CARD&quot;.</li>
+                  </ul>
+                </section>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="main-layout">
+          <div className="form-wrapper">
+            {showEmptyState && (
+              <div className="empty-state">
+                <div className="empty-state-icon" aria-hidden="true">📄</div>
+                <h3>No files uploaded yet</h3>
+                <p>Upload your student list (Excel) and timetable to get started. Use the template below if needed.</p>
+              </div>
+            )}
+
+            {currentStep === 2 && (
+              <div className="review-summary">
+                <h3>Review your inputs</h3>
+                <ul>
+                  <li>School: {formData.school_name || '—'}</li>
+                  <li>Student file: {formData.students_file?.name || '—'}</li>
+                  <li>Timetable file: {formData.timetable_file?.name || '—'}</li>
+                  {formData.show_photo_box && <li>Photos: {formData.photos_file?.name || 'Not uploaded'}</li>}
+                </ul>
+                <div className="step-actions" style={{ marginTop: 16 }}>
+                  <button type="button" className="btn-secondary" onClick={() => setCurrentStep(1)}>Back to Edit</button>
+                </div>
+              </div>
+            )}
+
+            {loading && (
+              <div className="skeleton-block" style={{ padding: 24, marginBottom: 24 }}>
+                <div className="skeleton-block skeleton-row" style={{ width: '80%' }} />
+                <div className="skeleton-block skeleton-row" style={{ width: '60%' }} />
+                <div className="skeleton-block skeleton-row" style={{ width: '70%' }} />
+                <div className="skeleton-block skeleton-btn" />
+                <p className="generating-message">Generating hall tickets… This may take a moment.</p>
+              </div>
+            )}
+
+        <form onSubmit={handleSubmit} className="form" noValidate style={{ display: loading ? 'none' : undefined }}>
+          {currentStep === 1 && (
+          <>
           <div className="form-sections-row">
             <div className="form-section">
               <h2>School Information</h2>
@@ -598,6 +757,19 @@ function App() {
               </div>
             )}
           </div>
+          </>
+          )}
+
+          {currentStep === 2 && (
+            <>
+              <div className="step-actions">
+                <button type="button" className="btn-secondary" onClick={() => setCurrentStep(1)}>Back</button>
+                <button type="submit" className="submit-btn" disabled={loading}>
+                  Generate Hall Tickets
+                </button>
+              </div>
+            </>
+          )}
 
           {error && (
             <div className="alert alert-error">
@@ -608,13 +780,55 @@ function App() {
           {success && (
             <div className="alert alert-success">
               <strong>Success!</strong> Hall tickets generated and downloaded.
-      </div>
+            </div>
           )}
 
-          <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? 'Generating...' : 'Generate Hall Tickets'}
-        </button>
+          {currentStep === 1 && (
+            <button
+              type="button"
+              className="submit-btn"
+              style={{ marginTop: 8 }}
+              onClick={() => {
+                const errs = {}
+                const sn = validateField('school_name', formData.school_name)
+                if (sn) errs.school_name = sn
+                const sa = validateField('school_address', formData.school_address)
+                if (sa) errs.school_address = sa
+                const sf = validateFile(formData.students_file, ['.xlsx', '.xls'], 50, true, 'students_file')
+                if (sf) errs.students_file = sf
+                const tf = validateFile(formData.timetable_file, ['.xlsx', '.xls'], 50, true, 'timetable_file')
+                if (tf) errs.timetable_file = tf
+                if (formData.show_photo_box) {
+                  const pf = validateFile(formData.photos_file, ['.zip'], 100, true, 'photos_file')
+                  if (pf) errs.photos_file = pf
+                }
+                setFieldErrors(errs)
+                if (Object.keys(errs).length === 0) setCurrentStep(2)
+                else toast.error(Object.values(errs)[0])
+              }}
+              disabled={loading}
+            >
+              Continue to Review
+            </button>
+          )}
         </form>
+          </div>
+
+          <aside className="preview-panel" aria-label="Ticket preview">
+            <h3>Live preview</h3>
+            <div className="ticket-preview">
+              <div className="preview-school">{formData.school_name || 'School Name'}</div>
+              <div className="preview-placeholder" style={{ fontSize: '0.75rem', marginBottom: 8 }}>{formData.school_address || 'Address'}</div>
+              <div className="preview-exam">{formData.examination_name || 'ADMIT CARD'}</div>
+              <div className="preview-student">
+                <strong>Sample student</strong>
+                <div>Name: {formData.school_name ? 'Student Name' : '—'}</div>
+                <div>Roll: 1 · Reporting: {formData.reporting_time || '08:30 a.m.'}</div>
+              </div>
+              <div className="preview-placeholder" style={{ marginTop: 8 }}>QR code will appear on each ticket.</div>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   )
